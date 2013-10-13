@@ -33,6 +33,15 @@ namespace OpenRA.Server
 		ShuttingDown = 3
 	}
 
+	public enum DisconnectWay : byte
+	{
+		Quit,
+		Kick,
+		Ban,
+		ClosedSlot,
+		Disconnect
+	}
+
 	public class Server
 	{
 		public readonly IPAddress Ip;
@@ -232,7 +241,7 @@ namespace OpenRA.Server
 			}
 			catch (Exception e)
 			{
-				DropClient(newConn);
+				DropClient(newConn, DisconnectWay.Disconnect);
 				Log.Write("server", "Dropping client {0} because handshake failed: {1}", newConn.PlayerIndex.ToString(), e);
 			}
 		}
@@ -247,7 +256,7 @@ namespace OpenRA.Server
 						newConn.socket.RemoteEndPoint);
 
 					SendOrderTo(newConn, "ServerError", "The game has already started");
-					DropClient(newConn);
+					DropClient(newConn, DisconnectWay.Disconnect);
 					return;
 				}
 
@@ -257,7 +266,7 @@ namespace OpenRA.Server
 				{
 					var message = string.IsNullOrEmpty(handshake.Password) ? "Server requires a password" : "Incorrect password";
 					SendOrderTo(newConn, "AuthenticationError", message);
-					DropClient(newConn);
+					DropClient(newConn, DisconnectWay.Disconnect);
 					return;
 				}
 
@@ -287,7 +296,7 @@ namespace OpenRA.Server
 						newConn.socket.RemoteEndPoint);
 
 					SendOrderTo(newConn, "ServerError", "Server is running an incompatible mod");
-					DropClient(newConn);
+					DropClient(newConn, DisconnectWay.Disconnect);
 					return;
 				}
 
@@ -297,7 +306,7 @@ namespace OpenRA.Server
 						newConn.socket.RemoteEndPoint);
 
 					SendOrderTo(newConn, "ServerError", "Server is running an incompatible version");
-					DropClient(newConn);
+					DropClient(newConn, DisconnectWay.Disconnect);
 					return;
 				}
 
@@ -307,7 +316,7 @@ namespace OpenRA.Server
 				{
 					Log.Write("server", "Rejected connection from {0}; Banned.", newConn.socket.RemoteEndPoint);
 					SendOrderTo(newConn, "ServerError", "You have been {0} from the server".F(Settings.Ban.Contains(client.IpAddress) ? "banned" : "temporarily banned"));
-					DropClient(newConn);
+					DropClient(newConn, DisconnectWay.Ban);
 					return;
 				}
 
@@ -341,7 +350,7 @@ namespace OpenRA.Server
 
 				SetOrderLag();
 			}
-			catch (Exception) { DropClient(newConn); }
+			catch (Exception) { DropClient(newConn, DisconnectWay.Disconnect); }
 		}
 
 		void SetOrderLag()
@@ -379,7 +388,7 @@ namespace OpenRA.Server
 			}
 			catch (Exception e)
 			{
-				DropClient(c);
+				DropClient(c, DisconnectWay.Disconnect);
 				Log.Write("server", "Dropping client {0} because dispatching orders failed: {1}", client.ToString(), e);
 			}
 		}
@@ -487,7 +496,7 @@ namespace OpenRA.Server
 			return LobbyInfo.ClientWithIndex(conn.PlayerIndex);
 		}
 
-		public void DropClient(Connection toDrop)
+		public void DropClient(Connection toDrop, DisconnectWay way)
 		{
 			if (PreConns.Contains(toDrop))
 				PreConns.Remove(toDrop);
@@ -500,10 +509,27 @@ namespace OpenRA.Server
 					return;
 
 				var suffix = "";
-				if (State == ServerState.GameStarted)
+				if (State == ServerState.WaitingPlayers || State == ServerState.GameStarted)
 					suffix = dropClient.IsObserver ? " (Spectator)" : dropClient.Team != 0 ? " (Team {0})".F(dropClient.Team) : "";
-				SendMessage("{0}{1} has disconnected.".F(dropClient.Name, suffix));
 
+				switch(way) 
+				{
+					case DisconnectWay.Quit:
+						SendMessage("{0}{1} has quit.".F(dropClient.Name, suffix));
+						break;
+					case DisconnectWay.Kick:
+						SendMessage("{0}{1} has been kicked by the host.".F(dropClient.Name, suffix));
+						break;
+					case DisconnectWay.Ban:
+						SendMessage("{0}{1} has been banned by the host.".F(dropClient.Name, suffix));
+						break;
+					case DisconnectWay.ClosedSlot:
+						SendMessage("{0} slot was closed by the host.".F(dropClient.Name));
+						break;
+					case DisconnectWay.Disconnect:
+						SendMessage("{0}{1} has disconnected.".F(dropClient.Name, suffix));
+						break;
+				}
 				// Send disconnected order, even if still in the lobby
 				DispatchOrdersToClients(toDrop, 0, new ServerOrder("Disconnected", "").Serialize());
 
@@ -573,7 +599,7 @@ namespace OpenRA.Server
 
 			// Drop any unvalidated clients
 			foreach (var c in PreConns.ToArray())
-				DropClient(c);
+				DropClient(c, DisconnectWay.Disconnect);
 
 			DispatchOrders(null, 0,
 				new ServerOrder("StartGame", "").Serialize());

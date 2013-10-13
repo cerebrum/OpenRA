@@ -159,7 +159,7 @@ namespace OpenRA.Mods.RA.Server
 								if (occupantConn != null)
 								{
 									server.SendOrderTo(occupantConn, "ServerError", "Your slot was closed by the host");
-									server.DropClient(occupantConn);
+									server.DropClient(occupantConn, DisconnectWay.ClosedSlot);
 								}
 							}
 						}
@@ -544,7 +544,6 @@ namespace OpenRA.Mods.RA.Server
 
 						Log.Write("server", "Kicking client {0} as requested", kickClientID);
 						server.SendOrderTo(kickConn, "ServerError", "You have been kicked from the server");
-						server.DropClient(kickConn);
 
 						bool tempBan;
 						bool.TryParse(split[1], out tempBan);
@@ -553,7 +552,10 @@ namespace OpenRA.Mods.RA.Server
 						{
 							Log.Write("server", "Temporarily banning client {0} ({1}) as requested", kickClientID, kickConnIP);
 							server.TempBans.Add(kickConnIP);
+							server.DropClient(kickConn, DisconnectWay.Ban);
 						}
+						else
+							server.DropClient(kickConn, DisconnectWay.Kick);
 
 						server.SyncLobbyInfo();
 						return true;

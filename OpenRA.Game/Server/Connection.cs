@@ -54,7 +54,9 @@ namespace OpenRA.Server
 					else
 					{
 						if (len == 0)
-							server.DropClient(this);
+						{
+							server.DropClient(this, DisconnectWay.Disconnect);
+						}
 						break;
 					}
 				}
@@ -63,7 +65,7 @@ namespace OpenRA.Server
 					// NOTE(jsd): This should no longer be needed with the socket.Poll call above.
 					if (e.SocketErrorCode == SocketError.WouldBlock) break;
 
-					server.DropClient(this);
+					server.DropClient(this, DisconnectWay.Disconnect);
 					Log.Write("server", "Dropping client {0} because reading the data failed: {1}", PlayerIndex, e);
 					return false;
 				}
@@ -88,7 +90,7 @@ namespace OpenRA.Server
 
 								if (ExpectLength < 0 || ExpectLength > MaxOrderLength)
 								{
-									server.DropClient(this);
+									server.DropClient(this, DisconnectWay.Disconnect);
 									Log.Write("server", "Dropping client {0} for excessive order length = {1}", PlayerIndex, ExpectLength);
 									return;
 								}
