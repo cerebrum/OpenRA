@@ -81,7 +81,7 @@ namespace OpenRA.Network
 			get { return Clients.Count(c => c.Bot == null) == 1; }
 		}
 
-		public enum ClientState { NotReady, Ready, Disconnected = 1000 }
+		public enum ClientState { NotReady, Ready, Disconnected = 1000, Quit = 1001 }
 
 		public class Client
 		{
@@ -93,17 +93,30 @@ namespace OpenRA.Network
 			public int SpawnPoint;
 			public string Name;
 			public string IpAddress;
-			public ClientState State;
+			//public ClientState State;
+			public ClientState State
+			{
+				get {return _State;} 
+				set {Log.Write("server", "{0}: Session: Client.State set. New client.State={1} Old client.State={2}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),value,_State);
+					_State = value;}
+			}
+			private ClientState _State;
 			public int Team;
 			public string Slot;	// slot ID, or null for observer
 			public string Bot; // Bot type, null for real clients
 			public int BotControllerClientIndex; // who added the bot to the slot
 			public bool IsAdmin;
+			//public bool Quit;
 			public bool IsReady { get { return State == ClientState.Ready; } }
+			public bool Quit { get { return State == ClientState.Quit; } }
 			public bool IsObserver { get { return Slot == null; } }
 			public int Latency = -1;
 			public int LatencyJitter = -1;
 			public int[] LatencyHistory = { };
+		public Client()
+			{
+				Log.Write("server", "{0}: Session: Client.Client ctor. client.State={1}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),State);
+			}
 		}
 
 		public class Slot

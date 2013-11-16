@@ -83,7 +83,7 @@ namespace OpenRA.Mods.RA.Server
 							client.State = Session.ClientState.Ready;
 						else if (client.State == Session.ClientState.Ready)
 							client.State = Session.ClientState.NotReady;
-
+						Log.Write("server", "{0}: LobbyCommands: ready. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
 						Log.Write("server", "Player @{0} is {1}",
 							conn.socket.RemoteEndPoint, client.State);
 
@@ -232,6 +232,7 @@ namespace OpenRA.Mods.RA.Server
 								State = Session.ClientState.NotReady,
 								BotControllerClientIndex = controllerClientIndex
 							};
+							Log.Write("server", "{0}: LobbyCommands: slot_bot. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
 
 							// pick a random color for the bot
 							var hue = (byte)server.Random.Next(255);
@@ -285,6 +286,7 @@ namespace OpenRA.Mods.RA.Server
 
 							c.SpawnPoint = 0;
 							c.State = Session.ClientState.NotReady;
+							Log.Write("server", "{0}: LobbyCommands: map. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),c.Index,c.State,c.Quit);
 							c.Slot = i < slots.Length ? slots[i++] : null;
 							if (c.Slot != null)
 							{
@@ -558,6 +560,29 @@ namespace OpenRA.Mods.RA.Server
 							server.DropClient(kickConn, DisconnectWay.Kick);
 
 						server.SyncLobbyInfo();
+						return true;
+					}},
+				{ "quit",
+					s =>
+					{
+						if (s.Length < 1)
+						{
+							server.SendOrderTo(conn, "Message", "Malformed quit command");
+							return true;
+						}
+
+						int quitClientID;
+						int.TryParse(s, out quitClientID);
+
+						var quitConn = server.conns.SingleOrDefault(c => server.GetClient(c) != null && server.GetClient(c).Index == quitClientID);
+						if (quitConn == null)
+						{
+							server.SendOrderTo(conn, "Message", "Noone in that slot to quit.");
+							return true;
+						}
+						Log.Write("server", "{0}: LobbyCommands: Start of server.DropClient(quitConn, DisconnectWay.Quit)",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo));
+						server.DropClient(quitConn, DisconnectWay.Quit);
+						//server.SyncLobbyInfo();
 						return true;
 					}},
 				{ "name",

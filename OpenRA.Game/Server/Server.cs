@@ -284,6 +284,7 @@ namespace OpenRA.Server
 					State = Session.ClientState.NotReady,
 					IsAdmin = !LobbyInfo.Clients.Any(c1 => c1.IsAdmin)
 				};
+				Log.Write("server", "{0}: Server: ValidateClient. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
 
 				if (client.Slot != null)
 					SyncClientToPlayerReference(client, Map.Players[client.Slot]);
@@ -531,7 +532,11 @@ namespace OpenRA.Server
 						break;
 				}
 				// Send disconnected order, even if still in the lobby
-				DispatchOrdersToClients(toDrop, 0, new ServerOrder("Disconnected", "").Serialize());
+				Log.Write("server", "{0}: Server: Start of DispatchOrdersToClients",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo));
+				if (way == DisconnectWay.Quit)
+					DispatchOrdersToClients(toDrop, 0, new ServerOrder("Quit", "").Serialize());
+				else
+					DispatchOrdersToClients(toDrop, 0, new ServerOrder("Disconnected", "").Serialize());
 
 				LobbyInfo.Clients.RemoveAll(c => c.Index == toDrop.PlayerIndex);
 
@@ -569,7 +574,8 @@ namespace OpenRA.Server
 
 			try
 			{
-				toDrop.socket.Disconnect(false);
+				Log.Write("server", "{0}: Server: Start of toDrop.socket.Disconnect",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo));
+				//toDrop.socket.Disconnect(false);
 			}
 			catch { }
 

@@ -39,10 +39,14 @@ namespace OpenRA.Mods.RA.Widgets.Logic
 		readonly Action OnGameStart;
 		readonly Action onExit;
 		readonly OrderManager orderManager;
+		bool firsttime=true;
 
 		// Listen for connection failures
 		void ConnectionStateChanged(OrderManager om)
-		{
+		{//System.Diagnostics.Debugger.Break();
+			//if (firsttime) {System.Threading.Thread.Sleep(500);firsttime=false;return;}
+			Log.Write("server", "{0}: LobbyLogic: ConnectionStateChanged start. ConnectionState={1}, LocalClient Index={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),om.Connection.ConnectionState,om.LocalClient.Index,om.LocalClient.Quit);
+
 			if (om.Connection.ConnectionState == ConnectionState.NotConnected)
 			{
 				// Show connection failed dialog
@@ -63,12 +67,15 @@ namespace OpenRA.Mods.RA.Widgets.Logic
 					ConnectionLogic.Connect(om.Host, om.Port, password, onConnect, onExit);
 				};
 
-				Ui.OpenWindow("CONNECTIONFAILED_PANEL", new WidgetArgs()
-				{
-					{ "orderManager", om },
-					{ "onAbort", onExit },
-					{ "onRetry", onRetry }
-				});
+				if (om.LocalClient.Quit)
+					onExit();
+				//else
+					Ui.OpenWindow("CONNECTIONFAILED_PANEL", new WidgetArgs()
+					{
+						{ "orderManager", om },
+						{ "onAbort", onExit },
+						{ "onRetry", onRetry }
+					});
 			}
 		}
 
@@ -437,7 +444,8 @@ namespace OpenRA.Mods.RA.Widgets.Logic
 			}
 
 			var disconnectButton = lobby.Get<ButtonWidget>("DISCONNECT_BUTTON");
-			disconnectButton.OnClick = () => { CloseWindow(); onExit(); };
+			disconnectButton.OnClick = () => {Log.Write("server", "{0}: LobbyLogic: Start of Disconnect click",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo)); orderManager.IssueOrder(Order.Command("quit {0}".F(orderManager.LocalClient.Index)));
+				/*CloseWindow();*/ /*onExit();*/ };
 
 			bool teamChat = false;
 			var chatLabel = lobby.Get<LabelWidget>("LABEL_CHATTYPE");
@@ -540,6 +548,10 @@ namespace OpenRA.Mods.RA.Widgets.Logic
 
 		void UpdatePlayerList()
 		{
+			Log.Write("server", "{0}: LobbyLogic: UpdatePlayerList start. ConnectionState={1}, LocalClient Index={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),orderManager.Connection.ConnectionState,orderManager.LocalClient.Index,orderManager.LocalClient.Quit);
+			foreach (var i in orderManager.LobbyInfo.Clients) Log.Write("server", "{0}: LobbyLogic: UpdatePlayerList{1} start. ConnectionState={2}, Client Index={3} Quit={4} State={5}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),i.Index,i.State,i.Index,i.Quit,i.State);
+			if (orderManager.LocalClient.Quit)
+			{CloseWindow(); onExit();}
 			var idx = 0;
 			foreach (var kv in orderManager.LobbyInfo.Slots)
 			{

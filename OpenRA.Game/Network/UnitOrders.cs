@@ -61,8 +61,19 @@ namespace OpenRA.Network
 						var client = orderManager.LobbyInfo.ClientWithIndex(clientId);
 						if (client != null)
 							client.State = Session.ClientState.Disconnected;
+					Log.Write("server", "{0}: UnitOrders: Disconnected. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
 						break;
 					}
+
+				case "Quit": /* reports that the target player quit */
+				{
+					var client = orderManager.LobbyInfo.ClientWithIndex(clientId);
+					Log.Write("server", "{0}: UnitOrders: Quit. Old client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
+					if (client != null)
+						client.State = Session.ClientState.Quit;
+					Log.Write("server", "{0}: UnitOrders: Quit. New client.Index={1} client.State={2} Quit={3}",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo),client.Index,client.State,client.Quit);
+						break;
+				}
 
 				case "TeamChat":
 					{
@@ -145,6 +156,7 @@ namespace OpenRA.Network
 							Team = 0,
 							State = Session.ClientState.NotReady
 						};
+					Log.Write("server", "{0}: UnitOrders: HandshakeRequest.",DateTime.Now.ToString("HH:mm:ss.fff", System.Globalization.DateTimeFormatInfo.InvariantInfo)/*,client.Index,client.State,client.Quit*/);
 
 						var response = new HandshakeResponse()
 						{
